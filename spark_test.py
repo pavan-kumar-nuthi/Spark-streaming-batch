@@ -18,7 +18,12 @@ def on_open(ws):
 def on_message(ws, message):
     cur_data = json.loads(message)
     if cur_data["type"] == "ticker":
-        producer.send(cur_data["product_id"], value=json.dumps(message).encode("utf-8"))
+        producer.send(cur_data["product_id"], value=json.dumps({
+            "price": cur_data["price"],
+            "product_id": cur_data["product_id"],
+            "time": cur_data["time"],
+            "volume_24h": cur_data["volume_24h"]
+        }).encode("utf-8"))
 
 
 # url="wss://ws-feed-public.sandbox.exchange.coinbase.com"
