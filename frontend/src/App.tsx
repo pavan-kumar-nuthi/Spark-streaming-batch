@@ -23,7 +23,16 @@ function App() {
 
     const wsc = new WebSocket('ws://localhost:1337')
     wsc.onmessage = (message) => {
+        let clone = data;
+        if ((JSON.parse(message.data)).product_id === selVal)
+            if (clone.length < 15)
+                clone = [...clone, JSON.parse(message.data)]
+            else {
+                clone.shift()
+                clone.push(JSON.parse(message.data))
+            }
         console.log(JSON.parse(message.data));
+        setData(clone)
     }
 
 
@@ -60,7 +69,7 @@ function App() {
 								<Line type='monotone' dataKey='best_ask' stroke='#00f0ff' />
 								<Line type='monotone' dataKey='best_bid' stroke='#ff0000' />
 								<Line type='monotone' dataKey='price' stroke='#8884d8' />
-								<XAxis dataKey='index' stroke='#fff' />
+								<XAxis dataKey='time' stroke='#fff' />
 								<YAxis stroke='#fff' />
 								<Tooltip />
 							</LineChart>

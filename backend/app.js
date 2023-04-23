@@ -16,6 +16,7 @@ server.listen(1337, () => {
 
 wss.on('connection', function (ws) {
 	consumer.on('message', (message) => {
+        console.log(message.value)
 		ws.send(JSON.stringify(JSON.parse(message.value)))
 	})
 })
