@@ -3,7 +3,7 @@ from pyspark.sql.types import *
 from pyspark.sql.session import SparkSession
 from pyspark.sql import *
 
-# from pyspark.sql.functions import json_schema
+
 from pyspark.sql.functions import *
 
 # import json_schema
@@ -19,10 +19,12 @@ spark = (
     SparkSession.builder.master("local")
     .appName("kafka-example")
     .config("spark.jars.packages", ",".join(packages))
+    # .config("spark.jars",'/home/pavan/DBTlab/mysql-connector-java-5.1.48.jar')
+    .config("spark.jars", "/opt/spark/jars/mysql-connector-java-5.1.48.jar")
     .getOrCreate()
 )
 
-topics_names = ["BTC-USD", "ETH-USD"]
+# topics_names = ["BTC-USD", "ETH-USD"]
 # spark = SparkSession.builder.appName('sample').getOrCreate()
 kafka_df = (
     spark.readStream.format("kafka")
@@ -67,6 +69,7 @@ processed_df = parsed_df.withColumn(
 processed_df.printSchema()
 
 # Group by base, window and aggregate
+processed_df = processed_df.withWatermark('timestamp', '10 minutes')
 window_duration = "1 minute"
 aggregated_df = processed_df.groupBy(
     col("product_id"), window(col("timestamp"), window_duration)
@@ -78,7 +81,34 @@ aggregated_df = processed_df.groupBy(
         "best_bid": "max",
         "best_ask": "max",
     }
-)
+).select('product_id', 'window.start', 'window.end', 'avg(price)', 'avg(volume_24h)', 'max(timestamp)','max(best_ask)','max(best_bid)')
 
-query = aggregated_df.writeStream.outputMode("complete").format("console").start()
+aggregated_df.printSchema()
+
+aggregated_df = aggregated_df.withColumnRenamed('max(timestamp)', 'time')
+aggregated_df = aggregated_df.withColumnRenamed('avg(price)', 'price')
+aggregated_df = aggregated_df.withColumnRenamed('max(best_bid)', 'best_bid')
+aggregated_df = aggregated_df.withColumnRenamed('max(best_ask)', 'best_ask')
+aggregated_df = aggregated_df.withColumnRenamed('avg(volume_24h)', 'volume_24h')
+
+aggregated_df.printSchema()
+
+db = {"user": "root", "password": "admin"}
+
+
+def tomysql(df, epoch_id):
+    dfwriter = df.write.mode("append")
+    dfwriter.jdbc(url='jdbc:mysql://localhost:3306/batch',
+                  table='spark_agg', properties=db)
+
+
+query = aggregated_df.writeStream.outputMode(
+    "append").foreachBatch(tomysql).start()
+
+
+query1 = aggregated_df.selectExpr('to_json(struct(*)) AS value').writeStream.format('kafka').option('kafka.bootstrap.servers', 'localhost:9092').option('topic', 'stream').option('checkpointLocation', '/home/pavan/DBTlab/checkpoint').start()
+
+
+query1.awaitTermination()
 query.awaitTermination()
+

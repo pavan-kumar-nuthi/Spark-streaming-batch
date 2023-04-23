@@ -17,6 +17,7 @@ def on_open(ws):
 
 def on_message(ws, message):
     cur_data = json.loads(message)
+    # print(cur_data)
     if cur_data["type"] == "ticker":
         producer.send(cur_data["product_id"], value=json.dumps(message).encode("utf-8"))
 

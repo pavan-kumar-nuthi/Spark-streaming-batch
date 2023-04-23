@@ -1,10 +1,11 @@
 import json
 from kafka import KafkaConsumer
-from pyspark.sql import SparkSession
+# from pyspark.sql import SparkSession
 
-spark = SparkSession.builder.appName("SimpleApp").getOrCreate()
+# spark = SparkSession.builder.appName("SimpleApp").getOrCreate()
 
-consumer = KafkaConsumer('BTC-USD')
+consumer = KafkaConsumer('stream')  
+
 
 def process_messages():
     for msg in consumer:
