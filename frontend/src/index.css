@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+	@apply h-[100vh] bg-gradient-to-b  from-blue-800 from-10% to-blue-300;
+}
