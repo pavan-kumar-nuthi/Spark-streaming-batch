@@ -1,7 +1,8 @@
-from pydoc_data.topics import topics
 from pyspark.sql.types import *
 from pyspark.sql.session import SparkSession
 from pyspark.sql import *
+import os
+import urllib.request
 
 
 from pyspark.sql.functions import *
@@ -14,6 +15,13 @@ packages = [
     f"org.apache.spark:spark-sql-kafka-0-10_{scala_version}:{spark_version}",
     "org.apache.kafka:kafka-clients:3.4.0",
 ]
+
+driver_url = "https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.30/mysql-connector-java-8.0.30-sources.jar"
+print(os.path.basename(driver_url))
+driver_filename = os.path.basename(driver_url)
+temp_dir = "/tmp"
+driver_path = os.path.join(temp_dir, driver_filename)
+urllib.request.urlretrieve(driver_url, driver_path)
 
 spark = (
     SparkSession.builder.master("local")
@@ -28,8 +36,7 @@ spark = (
 kafka_df = (
     spark.readStream.format("kafka")
     .option("kafka.bootstrap.servers", "localhost:9092")
-    .option("subscribe", "BTC-USD,ETH-USD")
-    .option("startingOffsets", "earliest")
+    .option("subscribe", "BTC-USD,ETH-USD,LTC-USD")
     .load()
 )
 
@@ -68,7 +75,7 @@ processed_df = parsed_df.withColumn(
 processed_df.printSchema()
 
 # Group by base, window and aggregate
-processed_df = processed_df.withWatermark("timestamp", "10 minutes")
+processed_df = processed_df.withWatermark("timestamp", "2 minutes")
 window_duration = "1 minute"
 aggregated_df = (
     processed_df.groupBy(col("product_id"), window(col("timestamp"), window_duration))
@@ -105,25 +112,28 @@ aggregated_df = (
 
 aggregated_df.printSchema()
 
-db = {"user": "root", "password": ""}
-
-
 def tomysql(df, epoch_id):
-    dfwriter = df.write.mode("append")
-    dfwriter.jdbc(url='jdbc:mysql://localhost:3306/batch',
-                  table='spark_agg', properties=db)
+    (
+        df.write.jdbc(
+            url="jdbc:mysql://localhost:3306/batch",
+            table="spark_agg",
+            mode="append",
+            properties={"user": "root", "password": "", "driver": "com.mysql.jdbc.Driver"},
+        )
+    )
+
 
 query = aggregated_df.writeStream.outputMode("append").foreachBatch(tomysql).start()
 
-query1 = (
-    aggregated_df.selectExpr("to_json(struct(*)) AS value")
-    .writeStream.format("kafka")
-    .option("kafka.bootstrap.servers", "localhost:9092")
-    .option("checkpointLocation", "./checkpoint")
-    .option("topic", "stream")
-    .start()
-)
+""" query1 = ( """
+"""     aggregated_df.selectExpr("to_json(struct(*)) AS value") """
+"""     .writeStream.format("kafka") """
+"""     .option("kafka.bootstrap.servers", "localhost:9092") """
+"""     .option("checkpointLocation", "./checkpoint") """
+"""     .option("topic", "stream") """
+"""     .start() """
+""" ) """
 
 
-query1.awaitTermination()
+""" query1.awaitTermination() """
 query.awaitTermination()

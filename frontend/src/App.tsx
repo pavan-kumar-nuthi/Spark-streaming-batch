@@ -52,6 +52,7 @@ function App() {
 						>
 							<option value='BTC-USD'>Bitcoin</option>
 							<option value='ETH-USD'>Ethereum</option>
+							<option value='LTC-USD'>Litecoin</option>
 						</select>
 					</div>
 					<div className='col-span-2 bg-blue-600 rounded-md p-2 pr-10'>
